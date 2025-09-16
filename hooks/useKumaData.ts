@@ -44,6 +44,13 @@ interface MonitorStatus {
   lastCheck?: string;
 }
 
+// Cache for preloaded monitor data
+const monitorDataCache = new Map<number, {
+  status: MonitorStatus;
+  heartbeats: any[];
+  timestamp: number;
+}>();
+
 export function useKumaData() {
   const [serverUrl, setServerUrl] = useState("");
   const [statusPageId, setStatusPageId] = useState("vroom");
@@ -54,10 +61,17 @@ export function useKumaData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load settings on mount
+  // Load settings on mount and fetch data
   useEffect(() => {
     loadSettings();
   }, []);
+
+  // Fetch data when settings are loaded
+  useEffect(() => {
+    if (serverUrl && statusPageId) {
+      refreshData();
+    }
+  }, [serverUrl, statusPageId, refreshData]);
 
   // Auto-refresh effect
   useEffect(() => {
@@ -68,7 +82,7 @@ export function useKumaData() {
     }, 30000); // Default 30 seconds
 
     return () => clearInterval(interval);
-  }, [serverUrl, statusPageId]);
+  }, [serverUrl, statusPageId, refreshData]);
 
   const loadSettings = async () => {
     try {
@@ -79,14 +93,27 @@ export function useKumaData() {
 
       if (url) setServerUrl(url);
       if (pageId) setStatusPageId(pageId);
+
+      // If no settings are found, set default values and show appropriate message
+      if (!url || !pageId) {
+        setError(
+          "Please configure your server URL and status page ID in settings"
+        );
+        setLoading(false);
+      }
     } catch (error) {
       console.error("Error loading settings:", error);
+      setError("Error loading settings");
+      setLoading(false);
     }
   };
 
   const refreshData = useCallback(async () => {
     if (!serverUrl || !statusPageId) {
       setLoading(false);
+      setError(
+        "Please configure your server URL and status page ID in settings"
+      );
       return;
     }
 
@@ -191,8 +218,20 @@ export function useKumaData() {
       }
     } catch (error) {
       console.error("Error refreshing data:", error);
-      setError(error instanceof Error ? error.message : "Unknown error");
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setError(errorMessage);
       setOverallStatus("error");
+
+      // If it's a network error, try to provide more helpful message
+      if (
+        errorMessage.includes("Failed to fetch") ||
+        errorMessage.includes("Network")
+      ) {
+        setError(
+          "Network error. Please check your internet connection and server URL."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -227,10 +266,14 @@ export function useKumaData() {
   const getMonitorStatus = useCallback(
     async (monitorId: number): Promise<MonitorStatus> => {
       if (!serverUrl) {
+        console.log("No server URL for monitor status");
         return { status: "error" };
       }
 
       try {
+        console.log(
+          `Fetching status for monitor ${monitorId} from ${serverUrl}/api/badge/${monitorId}/status`
+        );
         const response = await fetch(
           `${serverUrl}/api/badge/${monitorId}/status`
         );
@@ -243,11 +286,16 @@ export function useKumaData() {
 
         // Get the response text (could be SVG or JSON)
         const responseText = await response.text();
+        console.log(
+          `Monitor ${monitorId} response:`,
+          responseText.substring(0, 200)
+        );
 
         // Check if it's JSON first
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
           const data = JSON.parse(responseText);
+          console.log(`Monitor ${monitorId} JSON data:`, data);
           return {
             status: data.status === "up" ? "up" : "down",
             lastCheck: data.lastCheck || new Date().toLocaleTimeString(),
@@ -257,6 +305,7 @@ export function useKumaData() {
         // If it's SVG, parse the status from it
         if (responseText.includes("<svg")) {
           const status = parseStatusFromSVG(responseText);
+          console.log(`Monitor ${monitorId} SVG status:`, status);
           return {
             status,
             lastCheck: new Date().toLocaleTimeString(),
@@ -278,10 +327,14 @@ export function useKumaData() {
   const getHeartbeats = useCallback(
     async (monitorId: number) => {
       if (!serverUrl) {
+        console.log("No server URL for heartbeats");
         return [];
       }
 
       try {
+        console.log(
+          `Fetching heartbeats for monitor ${monitorId} from ${serverUrl}/api/status-page/heartbeat/${statusPageId}`
+        );
         const response = await fetch(
           `${serverUrl}/api/status-page/heartbeat/${statusPageId}`
         );
@@ -298,18 +351,26 @@ export function useKumaData() {
         }
 
         const data = await response.json();
+        console.log("Heartbeats raw data:", data);
 
-        // Filter heartbeats for this monitor and format them properly
-        const monitorHeartbeats = data
-          .filter((heartbeat: any) => heartbeat.monitorId === monitorId)
-          .map((heartbeat: any) => ({
-            id: heartbeat.id || heartbeat.time,
-            monitorId: heartbeat.monitorId,
+        // The data structure has heartbeatList with monitor IDs as keys
+        const heartbeatList = data.heartbeatList || {};
+        console.log("Heartbeat list:", heartbeatList);
+        // Try both string and number keys for the monitor ID
+        const monitorHeartbeats =
+          heartbeatList[monitorId] || heartbeatList[monitorId.toString()] || [];
+        console.log(`Heartbeats for monitor ${monitorId}:`, monitorHeartbeats);
+
+        // Format the heartbeats properly
+        const formattedHeartbeats = monitorHeartbeats
+          .map((heartbeat: any, index: number) => ({
+            id: heartbeat.time || index, // Use time as ID since it's unique
+            monitorId: monitorId,
             status: heartbeat.status === 1 ? "up" : "down",
             msg: heartbeat.msg || "",
-            time: heartbeat.time || heartbeat.timestamp,
-            duration: heartbeat.duration || heartbeat.ping,
-            ping: heartbeat.ping || heartbeat.duration,
+            time: heartbeat.time,
+            duration: heartbeat.ping, // KUMA uses 'ping' field
+            ping: heartbeat.ping,
           }))
           .sort(
             (a: any, b: any) =>
@@ -317,7 +378,11 @@ export function useKumaData() {
           )
           .slice(0, 50); // Limit to last 50 heartbeats for performance
 
-        return monitorHeartbeats;
+        console.log(
+          `Formatted heartbeats for monitor ${monitorId}:`,
+          formattedHeartbeats
+        );
+        return formattedHeartbeats;
       } catch (error) {
         console.error("Error fetching heartbeats:", error);
         return [];
@@ -326,13 +391,62 @@ export function useKumaData() {
     [serverUrl, statusPageId]
   );
 
+  const retry = useCallback(() => {
+    setError(null);
+    refreshData();
+  }, [refreshData]);
+
+  // Preload monitor data and cache it
+  const preloadMonitorData = useCallback(
+    async (monitorId: number) => {
+      if (!serverUrl) return;
+
+      try {
+        console.log(`Preloading data for monitor ${monitorId}`);
+        const [status, heartbeats] = await Promise.all([
+          getMonitorStatus(monitorId),
+          getHeartbeats(monitorId),
+        ]);
+
+        // Cache the data
+        monitorDataCache.set(monitorId, {
+          status,
+          heartbeats,
+          timestamp: Date.now(),
+        });
+
+        console.log(`Cached data for monitor ${monitorId}:`, {
+          status,
+          heartbeats: heartbeats.length,
+        });
+      } catch (error) {
+        console.warn(`Failed to preload data for monitor ${monitorId}:`, error);
+      }
+    },
+    [serverUrl, getMonitorStatus, getHeartbeats]
+  );
+
+  // Get cached monitor data
+  const getCachedMonitorData = useCallback((monitorId: number) => {
+    const cached = monitorDataCache.get(monitorId);
+    if (cached && Date.now() - cached.timestamp < 30000) {
+      // 30 second cache
+      console.log(`Using cached data for monitor ${monitorId}`);
+      return cached;
+    }
+    return null;
+  }, []);
+
   return {
     monitors,
     overallStatus,
     loading,
     error,
     refreshData,
+    retry,
     getMonitorStatus,
     getHeartbeats,
+    preloadMonitorData,
+    getCachedMonitorData,
   };
 }

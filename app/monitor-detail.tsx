@@ -1,12 +1,15 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { GlassButton } from "@/components/ui/glass-button";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useKumaData } from "@/hooks/useKumaData";
+import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface Heartbeat {
   id: string | number;
@@ -24,7 +27,8 @@ export default function MonitorDetailScreen() {
     monitorName: string;
   }>();
   const colorScheme = useColorScheme();
-  const { getMonitorStatus, getHeartbeats } = useKumaData();
+  const { getMonitorStatus, getHeartbeats, retry, getCachedMonitorData } =
+    useKumaData();
   const [status, setStatus] = useState<"up" | "down" | "loading" | "error">(
     "loading"
   );
@@ -32,34 +36,73 @@ export default function MonitorDetailScreen() {
   const [heartbeats, setHeartbeats] = useState<Heartbeat[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Reset state when monitorId changes
   useEffect(() => {
     if (monitorId) {
-      loadMonitorData();
+      setStatus("loading");
+      setLastCheck("");
+      setHeartbeats([]);
+      setLoading(true);
+      setError(null);
     }
   }, [monitorId]);
 
-  const loadMonitorData = async () => {
+  // Auto-refresh when screen comes into focus (with a small delay to allow preloading)
+  useFocusEffect(
+    useCallback(() => {
+      if (monitorId) {
+        // Small delay to allow preloaded data to be used
+        const timeoutId = setTimeout(() => {
+          loadMonitorData();
+        }, 100);
+
+        return () => clearTimeout(timeoutId);
+      }
+    }, [monitorId, loadMonitorData])
+  );
+
+  const loadMonitorData = useCallback(async () => {
     if (!monitorId) return;
 
     try {
       setLoading(true);
+      setError(null);
 
-      // Load monitor status
+      console.log(`Loading data for monitor ${monitorId}`);
+
+      // Check for cached data first
+      const cachedData = getCachedMonitorData(parseInt(monitorId));
+      if (cachedData) {
+        console.log(`Using cached data for monitor ${monitorId}`);
+        setStatus(cachedData.status.status);
+        setLastCheck(cachedData.status.lastCheck || "");
+        setHeartbeats(cachedData.heartbeats);
+        setLoading(false);
+        return;
+      }
+
+      // Load fresh data if no cache
       const monitorStatus = await getMonitorStatus(parseInt(monitorId));
+      console.log(`Monitor status:`, monitorStatus);
       setStatus(monitorStatus.status);
       setLastCheck(monitorStatus.lastCheck || "");
 
       // Load heartbeats
       const heartbeatData = await getHeartbeats(parseInt(monitorId));
+      console.log(`Heartbeat data:`, heartbeatData);
       setHeartbeats(heartbeatData);
     } catch (error) {
       console.error("Error loading monitor data:", error);
       setStatus("error");
+      setError(
+        error instanceof Error ? error.message : "Failed to load monitor data"
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }, [monitorId, getMonitorStatus, getHeartbeats, getCachedMonitorData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -156,7 +199,7 @@ export default function MonitorDetailScreen() {
 
   if (loading && !refreshing) {
     return (
-      <ThemedView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top"]}>
         <ThemedView style={styles.loadingContainer}>
           <IconSymbol
             name="arrow.clockwise"
@@ -167,14 +210,41 @@ export default function MonitorDetailScreen() {
             Loading monitor details...
           </ThemedText>
         </ThemedView>
-      </ThemedView>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <ThemedView style={styles.errorContainer}>
+          <IconSymbol
+            name="exclamationmark.triangle"
+            size={48}
+            color={Colors[colorScheme ?? "light"].tint}
+          />
+          <ThemedText style={styles.errorTitle}>
+            Failed to Load Monitor
+          </ThemedText>
+          <ThemedText style={styles.errorText}>{error}</ThemedText>
+          <GlassButton
+            title="Retry"
+            icon="arrow.clockwise"
+            variant="primary"
+            size="md"
+            onPress={loadMonitorData}
+            style={styles.retryButton}
+          />
+        </ThemedView>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -377,7 +447,7 @@ export default function MonitorDetailScreen() {
           )}
         </ThemedView>
       </ScrollView>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 
@@ -388,6 +458,10 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 32,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -397,6 +471,26 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     opacity: 0.7,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 40,
+    gap: 16,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  errorText: {
+    fontSize: 16,
+    opacity: 0.7,
+    textAlign: "center",
+  },
+  retryButton: {
+    marginTop: 16,
   },
   header: {
     padding: 20,

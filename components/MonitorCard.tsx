@@ -1,8 +1,10 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
+import { GlassCard } from "@/components/ui/glass-card";
+import { StatusIndicator } from "@/components/ui/status-indicator";
+import { DesignSystem } from "@/constants/design";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useKumaData } from "@/hooks/useKumaData";
 import { router } from "expo-router";
 import React from "react";
 import { StyleSheet, TouchableOpacity } from "react-native";
@@ -22,36 +24,11 @@ interface MonitorCardProps {
 
 export function MonitorCard({ monitor }: MonitorCardProps) {
   const colorScheme = useColorScheme();
+  const { preloadMonitorData } = useKumaData();
 
   // Use status from monitor prop, fallback to loading if not available
   const status = monitor.status || "loading";
   const lastCheck = monitor.lastCheck || "";
-
-  const getStatusColor = () => {
-    switch (status) {
-      case "up":
-        return "#10B981"; // green
-      case "down":
-        return "#EF4444"; // red
-      case "error":
-        return "#F59E0B"; // yellow
-      default:
-        return Colors[colorScheme ?? "light"].text;
-    }
-  };
-
-  const getStatusIcon = () => {
-    switch (status) {
-      case "up":
-        return "checkmark.circle.fill";
-      case "down":
-        return "xmark.circle.fill";
-      case "error":
-        return "exclamationmark.triangle.fill";
-      default:
-        return "arrow.clockwise";
-    }
-  };
 
   const getStatusText = () => {
     switch (status) {
@@ -66,7 +43,11 @@ export function MonitorCard({ monitor }: MonitorCardProps) {
     }
   };
 
-  const handlePress = () => {
+  const handlePress = async () => {
+    // Preload data immediately when clicked
+    preloadMonitorData(monitor.id);
+
+    // Navigate immediately
     router.push({
       pathname: "/monitor-detail",
       params: {
@@ -78,77 +59,62 @@ export function MonitorCard({ monitor }: MonitorCardProps) {
 
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
-      <ThemedView
-        style={[
-          styles.card,
-          {
-            borderColor: Colors[colorScheme ?? "light"].border,
-            backgroundColor: Colors[colorScheme ?? "light"].background,
-          },
-        ]}
-      >
+      <GlassCard style={styles.card} intensity={60}>
         <ThemedView style={styles.header}>
           <ThemedView style={styles.titleContainer}>
-            <ThemedText style={styles.name} numberOfLines={1}>
+            <ThemedText
+              style={[styles.name, DesignSystem.typography.headline]}
+              numberOfLines={1}
+            >
               {monitor.name}
             </ThemedText>
-            <ThemedText style={styles.type}>
+            <ThemedText style={[styles.type, DesignSystem.typography.caption1]}>
               {monitor.type.toUpperCase()}
             </ThemedText>
           </ThemedView>
 
-          <ThemedView style={styles.statusContainer}>
-            <IconSymbol
-              name={getStatusIcon()}
-              size={24}
-              color={getStatusColor()}
-            />
-          </ThemedView>
+          <StatusIndicator status={status} size="md" />
         </ThemedView>
 
         <ThemedView style={styles.footer}>
-          <ThemedText style={[styles.statusText, { color: getStatusColor() }]}>
+          <ThemedText
+            style={[styles.statusText, DesignSystem.typography.callout]}
+          >
             {getStatusText()}
           </ThemedText>
           {lastCheck && (
-            <ThemedText style={styles.lastCheck}>{lastCheck}</ThemedText>
+            <ThemedText
+              style={[styles.lastCheck, DesignSystem.typography.caption2]}
+            >
+              {lastCheck}
+            </ThemedText>
           )}
         </ThemedView>
-      </ThemedView>
+      </GlassCard>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 8,
+    marginBottom: DesignSystem.spacing.sm,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 12,
+    marginBottom: DesignSystem.spacing.sm,
   },
   titleContainer: {
     flex: 1,
-    marginRight: 12,
+    marginRight: DesignSystem.spacing.sm,
   },
   name: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
+    marginBottom: DesignSystem.spacing.xs,
   },
   type: {
-    fontSize: 12,
     opacity: 0.7,
     fontWeight: "500",
-  },
-  statusContainer: {
-    alignItems: "center",
-    justifyContent: "center",
   },
   footer: {
     flexDirection: "row",
@@ -156,11 +122,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statusText: {
-    fontSize: 14,
     fontWeight: "600",
   },
   lastCheck: {
-    fontSize: 12,
     opacity: 0.7,
   },
 });

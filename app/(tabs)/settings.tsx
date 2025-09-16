@@ -1,11 +1,15 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { GlassButton } from "@/components/ui/glass-button";
+import { GlassCard } from "@/components/ui/glass-card";
+import { DesignSystem } from "@/constants/design";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Switch, TextInput } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const STORAGE_KEYS = {
   SERVER_URL: "kuma_server_url",
@@ -108,139 +112,177 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <ThemedView style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
-            Settings
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>
-            Configure your KUMA server
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedView style={styles.section}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            Server Configuration
-          </ThemedText>
-
-          <ThemedView style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Server URL</ThemedText>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  color: Colors[colorScheme ?? "light"].text,
-                  borderColor: Colors[colorScheme ?? "light"].border,
-                  backgroundColor: Colors[colorScheme ?? "light"].background,
-                },
-              ]}
-              value={serverUrl}
-              onChangeText={setServerUrl}
-              placeholder="https://your-kuma-server.com"
-              placeholderTextColor={Colors[colorScheme ?? "light"].text + "80"}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </ThemedView>
-
-          <ThemedView style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Status Page ID</ThemedText>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  color: Colors[colorScheme ?? "light"].text,
-                  borderColor: Colors[colorScheme ?? "light"].border,
-                  backgroundColor: Colors[colorScheme ?? "light"].background,
-                },
-              ]}
-              value={statusPageId}
-              onChangeText={setStatusPageId}
-              placeholder="vroom"
-              placeholderTextColor={Colors[colorScheme ?? "light"].text + "80"}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </ThemedView>
-
-          <ThemedView style={styles.buttonContainer}>
-            <ThemedView
-              style={[
-                styles.button,
-                { backgroundColor: Colors[colorScheme ?? "light"].tint },
-              ]}
-              onTouchEnd={testConnection}
+    <LinearGradient
+      colors={
+        colorScheme === "dark"
+          ? ["#000000", "#1C1C1E", "#2C2C2E"]
+          : ["#F2F2F7", "#FFFFFF", "#F8F9FA"]
+      }
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <ThemedView style={styles.header}>
+            <ThemedText
+              style={[styles.title, DesignSystem.typography.largeTitle]}
             >
-              <IconSymbol name="wifi" size={20} color="white" />
-              <ThemedText style={styles.buttonText}>Test Connection</ThemedText>
-            </ThemedView>
-          </ThemedView>
-        </ThemedView>
-
-        <ThemedView style={styles.section}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            Refresh Settings
-          </ThemedText>
-
-          <ThemedView style={styles.switchRow}>
-            <ThemedView style={styles.switchLabel}>
-              <ThemedText style={styles.label}>Auto Refresh</ThemedText>
-              <ThemedText style={styles.switchDescription}>
-                Automatically refresh monitor data
-              </ThemedText>
-            </ThemedView>
-            <Switch
-              value={autoRefresh}
-              onValueChange={setAutoRefresh}
-              trackColor={{
-                false: "#767577",
-                true: Colors[colorScheme ?? "light"].tint,
-              }}
-              thumbColor={autoRefresh ? "white" : "#f4f3f4"}
-            />
+              Settings
+            </ThemedText>
+            <ThemedText
+              style={[styles.subtitle, DesignSystem.typography.subhead]}
+            >
+              Configure your KUMA server
+            </ThemedText>
           </ThemedView>
 
-          {autoRefresh && (
+          <GlassCard style={styles.section} intensity={60}>
+            <ThemedText
+              style={[styles.sectionTitle, DesignSystem.typography.title3]}
+            >
+              Server Configuration
+            </ThemedText>
+
             <ThemedView style={styles.inputGroup}>
-              <ThemedText style={styles.label}>
-                Refresh Interval (seconds)
+              <ThemedText
+                style={[styles.label, DesignSystem.typography.callout]}
+              >
+                Server URL
               </ThemedText>
               <TextInput
                 style={[
                   styles.input,
                   {
-                    color: Colors[colorScheme ?? "light"].text,
-                    borderColor: Colors[colorScheme ?? "light"].border,
-                    backgroundColor: Colors[colorScheme ?? "light"].background,
+                    color: DesignSystem.colors[colorScheme ?? "light"].label,
+                    borderColor:
+                      DesignSystem.colors[colorScheme ?? "light"].separator,
+                    backgroundColor:
+                      DesignSystem.colors[colorScheme ?? "light"].systemFill,
                   },
                 ]}
-                value={refreshInterval}
-                onChangeText={setRefreshInterval}
-                placeholder="30"
+                value={serverUrl}
+                onChangeText={setServerUrl}
+                placeholder="https://your-kuma-server.com"
                 placeholderTextColor={
-                  Colors[colorScheme ?? "light"].text + "80"
+                  DesignSystem.colors[colorScheme ?? "light"].tertiaryLabel
                 }
-                keyboardType="numeric"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
               />
             </ThemedView>
-          )}
-        </ThemedView>
 
-        <ThemedView style={styles.buttonContainer}>
-          <ThemedView
-            style={[
-              styles.saveButton,
-              { backgroundColor: Colors[colorScheme ?? "light"].tint },
-            ]}
-            onTouchEnd={saveSettings}
-          >
-            <IconSymbol name="checkmark" size={20} color="white" />
-            <ThemedText style={styles.buttonText}>Save Settings</ThemedText>
+            <ThemedView style={styles.inputGroup}>
+              <ThemedText
+                style={[styles.label, DesignSystem.typography.callout]}
+              >
+                Status Page ID
+              </ThemedText>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    color: DesignSystem.colors[colorScheme ?? "light"].label,
+                    borderColor:
+                      DesignSystem.colors[colorScheme ?? "light"].separator,
+                    backgroundColor:
+                      DesignSystem.colors[colorScheme ?? "light"].systemFill,
+                  },
+                ]}
+                value={statusPageId}
+                onChangeText={setStatusPageId}
+                placeholder="vroom"
+                placeholderTextColor={
+                  DesignSystem.colors[colorScheme ?? "light"].tertiaryLabel
+                }
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </ThemedView>
+
+            <ThemedView style={styles.buttonContainer}>
+              <GlassButton
+                title="Test Connection"
+                icon="wifi"
+                variant="primary"
+                size="md"
+                onPress={testConnection}
+                style={styles.testButton}
+              />
+            </ThemedView>
+          </GlassCard>
+
+          <GlassCard style={styles.section} intensity={60}>
+            <ThemedText
+              style={[styles.sectionTitle, DesignSystem.typography.title3]}
+            >
+              Refresh Settings
+            </ThemedText>
+
+            <ThemedView style={styles.switchRow}>
+              <ThemedView style={styles.switchLabel}>
+                <ThemedText style={styles.label}>Auto Refresh</ThemedText>
+                <ThemedText style={styles.switchDescription}>
+                  Automatically refresh monitor data
+                </ThemedText>
+              </ThemedView>
+              <Switch
+                value={autoRefresh}
+                onValueChange={setAutoRefresh}
+                trackColor={{
+                  false: "#767577",
+                  true: Colors[colorScheme ?? "light"].tint,
+                }}
+                thumbColor={autoRefresh ? "white" : "#f4f3f4"}
+              />
+            </ThemedView>
+
+            {autoRefresh && (
+              <ThemedView style={styles.inputGroup}>
+                <ThemedText
+                  style={[styles.label, DesignSystem.typography.callout]}
+                >
+                  Refresh Interval (seconds)
+                </ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: DesignSystem.colors[colorScheme ?? "light"].label,
+                      borderColor:
+                        DesignSystem.colors[colorScheme ?? "light"].separator,
+                      backgroundColor:
+                        DesignSystem.colors[colorScheme ?? "light"].systemFill,
+                    },
+                  ]}
+                  value={refreshInterval}
+                  onChangeText={setRefreshInterval}
+                  placeholder="30"
+                  placeholderTextColor={
+                    DesignSystem.colors[colorScheme ?? "light"].tertiaryLabel
+                  }
+                  keyboardType="numeric"
+                />
+              </ThemedView>
+            )}
+          </GlassCard>
+
+          <ThemedView style={styles.buttonContainer}>
+            <GlassButton
+              title="Save Settings"
+              icon="checkmark"
+              variant="primary"
+              size="lg"
+              onPress={saveSettings}
+              style={styles.saveButton}
+            />
           </ThemedView>
-        </ThemedView>
-      </ScrollView>
-    </ThemedView>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
@@ -248,79 +290,66 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  safeArea: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: DesignSystem.spacing.xl,
+  },
   header: {
-    padding: 20,
-    paddingBottom: 16,
+    padding: DesignSystem.spacing.lg,
+    paddingBottom: DesignSystem.spacing.md,
   },
   title: {
-    marginBottom: 4,
+    marginBottom: DesignSystem.spacing.xs,
   },
   subtitle: {
     opacity: 0.7,
-    fontSize: 16,
   },
   section: {
-    marginBottom: 24,
-    paddingHorizontal: 20,
+    margin: DesignSystem.spacing.lg,
+    marginTop: 0,
   },
   sectionTitle: {
-    marginBottom: 16,
+    marginBottom: DesignSystem.spacing.md,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: DesignSystem.spacing.md,
   },
   label: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
+    marginBottom: DesignSystem.spacing.sm,
   },
   input: {
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    borderRadius: DesignSystem.borderRadius.md,
+    padding: DesignSystem.spacing.md,
   },
   switchRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: DesignSystem.spacing.md,
   },
   switchLabel: {
     flex: 1,
-    marginRight: 16,
+    marginRight: DesignSystem.spacing.md,
   },
   switchDescription: {
-    fontSize: 14,
     opacity: 0.7,
-    marginTop: 2,
+    marginTop: DesignSystem.spacing.xs,
   },
   buttonContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingHorizontal: DesignSystem.spacing.lg,
+    marginTop: DesignSystem.spacing.md,
   },
-  button: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    borderRadius: 8,
-    gap: 8,
+  testButton: {
+    width: "100%",
   },
   saveButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    borderRadius: 8,
-    gap: 8,
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
+    width: "100%",
   },
 });

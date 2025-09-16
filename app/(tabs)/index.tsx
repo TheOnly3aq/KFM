@@ -1,22 +1,24 @@
 import { MonitorCard } from "@/components/MonitorCard";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { GlassButton } from "@/components/ui/glass-button";
+import { GlassCard } from "@/components/ui/glass-card";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
+import { StatusIndicator } from "@/components/ui/status-indicator";
+import { DesignSystem } from "@/constants/design";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useKumaData } from "@/hooks/useKumaData";
+import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
-import React, { useState } from "react";
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-} from "react-native";
+import React, { useCallback, useState } from "react";
+import { RefreshControl, ScrollView, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function DashboardScreen() {
   const colorScheme = useColorScheme();
-  const { monitors, overallStatus, loading, refreshData } = useKumaData();
+  const { monitors, overallStatus, loading, error, refreshData, retry } =
+    useKumaData();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
@@ -25,31 +27,12 @@ export default function DashboardScreen() {
     setRefreshing(false);
   };
 
-  const getStatusColor = () => {
-    switch (overallStatus) {
-      case "up":
-        return "#10B981"; // green
-      case "down":
-        return "#EF4444"; // red
-      case "error":
-        return "#F59E0B"; // yellow
-      default:
-        return Colors[colorScheme ?? "light"].text;
-    }
-  };
-
-  const getStatusIcon = () => {
-    switch (overallStatus) {
-      case "up":
-        return "checkmark.circle.fill";
-      case "down":
-        return "xmark.circle.fill";
-      case "error":
-        return "exclamationmark.triangle.fill";
-      default:
-        return "arrow.clockwise";
-    }
-  };
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refreshData();
+    }, [refreshData])
+  );
 
   const getStatusText = () => {
     switch (overallStatus) {
@@ -73,221 +56,255 @@ export default function DashboardScreen() {
   }).length;
 
   return (
-    <ThemedView style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Header */}
-        <ThemedView style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
-            KUMA Monitor
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>
-            Uptime monitoring dashboard
-          </ThemedText>
-        </ThemedView>
-
-        {/* Overall Status Card */}
-        <ThemedView
-          style={[
-            styles.statusCard,
-            {
-              borderColor: Colors[colorScheme ?? "light"].border,
-              backgroundColor: Colors[colorScheme ?? "light"].background,
-            },
-          ]}
+    <LinearGradient
+      colors={
+        colorScheme === "dark"
+          ? ["#000000", "#1C1C1E", "#2C2C2E"]
+          : ["#F2F2F7", "#FFFFFF", "#F8F9FA"]
+      }
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
         >
-          <ThemedView style={styles.statusHeader}>
-            <IconSymbol
-              name={getStatusIcon()}
-              size={32}
-              color={getStatusColor()}
-            />
-            <ThemedView style={styles.statusTextContainer}>
-              <ThemedText
-                style={[styles.statusText, { color: getStatusColor() }]}
-              >
-                {getStatusText()}
-              </ThemedText>
-              <ThemedText style={styles.statusSubtext}>
-                {loading ? "Checking status..." : "Last updated just now"}
-              </ThemedText>
-            </ThemedView>
-          </ThemedView>
-        </ThemedView>
-
-        {/* Stats Cards */}
-        <ThemedView style={styles.statsContainer}>
-          <ThemedView
-            style={[
-              styles.statCard,
-              {
-                borderColor: Colors[colorScheme ?? "light"].border,
-                backgroundColor: Colors[colorScheme ?? "light"].background,
-              },
-            ]}
-          >
-            <IconSymbol
-              name="server.rack"
-              size={24}
-              color={Colors[colorScheme ?? "light"].tint}
-            />
-            <ThemedText style={styles.statNumber}>{monitors.length}</ThemedText>
-            <ThemedText style={styles.statLabel}>Total Monitors</ThemedText>
-          </ThemedView>
-
-          <ThemedView
-            style={[
-              styles.statCard,
-              {
-                borderColor: Colors[colorScheme ?? "light"].border,
-                backgroundColor: Colors[colorScheme ?? "light"].background,
-              },
-            ]}
-          >
-            <IconSymbol name="checkmark.circle" size={24} color="#10B981" />
-            <ThemedText style={styles.statNumber}>{upMonitors}</ThemedText>
-            <ThemedText style={styles.statLabel}>Operational</ThemedText>
-          </ThemedView>
-
-          {errorMonitors > 0 && (
-            <ThemedView
-              style={[
-                styles.statCard,
-                {
-                  borderColor: Colors[colorScheme ?? "light"].border,
-                  backgroundColor: Colors[colorScheme ?? "light"].background,
-                },
-              ]}
+          {/* Header */}
+          <ThemedView style={styles.header}>
+            <ThemedText
+              style={[styles.title, DesignSystem.typography.largeTitle]}
             >
-              <IconSymbol
-                name="exclamationmark.triangle"
-                size={24}
-                color="#F59E0B"
-              />
-              <ThemedText style={styles.statNumber}>{errorMonitors}</ThemedText>
-              <ThemedText style={styles.statLabel}>Issues</ThemedText>
-            </ThemedView>
-          )}
-        </ThemedView>
+              KUMA Monitor
+            </ThemedText>
+            <ThemedText
+              style={[styles.subtitle, DesignSystem.typography.subhead]}
+            >
+              Uptime monitoring dashboard
+            </ThemedText>
+          </ThemedView>
 
-        {/* Quick Actions */}
-        <ThemedView style={styles.section}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            Quick Actions
-          </ThemedText>
-          <ThemedView style={styles.actionsContainer}>
-            <Link href="/monitors" asChild>
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  { backgroundColor: Colors[colorScheme ?? "light"].tint },
-                ]}
-              >
-                <IconSymbol name="server.rack" size={20} color="white" />
-                <ThemedText style={styles.actionText}>
-                  View All Monitors
+          {/* Overall Status Card */}
+          <GlassCard style={styles.statusCard} intensity={80}>
+            <ThemedView style={styles.statusHeader}>
+              <StatusIndicator status={overallStatus} size="lg" />
+              <ThemedView style={styles.statusTextContainer}>
+                <ThemedText
+                  style={[styles.statusText, DesignSystem.typography.title3]}
+                >
+                  {getStatusText()}
                 </ThemedText>
-              </TouchableOpacity>
-            </Link>
-
-            <Link href="/settings" asChild>
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  {
-                    backgroundColor: Colors[colorScheme ?? "light"].background,
-                    borderColor: Colors[colorScheme ?? "light"].border,
-                  },
-                ]}
-              >
-                <IconSymbol
-                  name="gear"
-                  size={20}
-                  color={Colors[colorScheme ?? "light"].text}
-                />
                 <ThemedText
                   style={[
-                    styles.actionText,
-                    { color: Colors[colorScheme ?? "light"].text },
+                    styles.statusSubtext,
+                    DesignSystem.typography.footnote,
                   ]}
                 >
-                  Settings
-                </ThemedText>
-              </TouchableOpacity>
-            </Link>
-          </ThemedView>
-        </ThemedView>
-
-        {/* Recent Monitors */}
-        {monitors.length > 0 && (
-          <ThemedView style={styles.section}>
-            <ThemedText type="subtitle" style={styles.sectionTitle}>
-              Recent Monitors
-            </ThemedText>
-            <ThemedView style={styles.monitorsList}>
-              {monitors.slice(0, 3).map((monitor) => (
-                <MonitorCard key={monitor.id} monitor={monitor} />
-              ))}
-            </ThemedView>
-
-            {errorMonitors > 0 && (
-              <ThemedView
-                style={[
-                  styles.infoBox,
-                  {
-                    borderColor: Colors[colorScheme ?? "light"].border,
-                    backgroundColor: Colors[colorScheme ?? "light"].background,
-                  },
-                ]}
-              >
-                <IconSymbol
-                  name="info.circle"
-                  size={16}
-                  color={Colors[colorScheme ?? "light"].tint}
-                />
-                <ThemedText style={styles.infoText}>
-                  Some monitors show "Error" status. The app now supports both
-                  JSON and SVG badge responses. If you still see errors, check
-                  that the monitor endpoints are accessible.
+                  {loading ? "Checking status..." : "Last updated just now"}
                 </ThemedText>
               </ThemedView>
+            </ThemedView>
+          </GlassCard>
+
+          {/* Stats Cards */}
+          <ThemedView style={styles.statsContainer}>
+            <GlassCard style={styles.statCard} intensity={60}>
+              <IconSymbol
+                name="server.rack"
+                size={24}
+                color={DesignSystem.colors[colorScheme ?? "light"].link}
+              />
+              <ThemedText
+                style={[styles.statNumber, DesignSystem.typography.title1]}
+              >
+                {monitors.length}
+              </ThemedText>
+              <ThemedText
+                style={[styles.statLabel, DesignSystem.typography.caption1]}
+              >
+                Total Monitors
+              </ThemedText>
+            </GlassCard>
+
+            <GlassCard style={styles.statCard} intensity={60}>
+              <IconSymbol
+                name="checkmark.circle"
+                size={24}
+                color={DesignSystem.colors[colorScheme ?? "light"].success}
+              />
+              <ThemedText
+                style={[styles.statNumber, DesignSystem.typography.title1]}
+              >
+                {upMonitors}
+              </ThemedText>
+              <ThemedText
+                style={[styles.statLabel, DesignSystem.typography.caption1]}
+              >
+                Operational
+              </ThemedText>
+            </GlassCard>
+
+            {errorMonitors > 0 && (
+              <GlassCard style={styles.statCard} intensity={60}>
+                <IconSymbol
+                  name="exclamationmark.triangle"
+                  size={24}
+                  color={DesignSystem.colors[colorScheme ?? "light"].warning}
+                />
+                <ThemedText
+                  style={[styles.statNumber, DesignSystem.typography.title1]}
+                >
+                  {errorMonitors}
+                </ThemedText>
+                <ThemedText
+                  style={[styles.statLabel, DesignSystem.typography.caption1]}
+                >
+                  Issues
+                </ThemedText>
+              </GlassCard>
             )}
           </ThemedView>
-        )}
 
-        {monitors.length === 0 && !loading && (
-          <ThemedView style={styles.emptyState}>
-            <IconSymbol
-              name="server.rack"
-              size={48}
-              color={Colors[colorScheme ?? "light"].text}
-            />
-            <ThemedText style={styles.emptyText}>
-              No monitors configured
+          {/* Quick Actions */}
+          <ThemedView style={styles.section}>
+            <ThemedText
+              style={[styles.sectionTitle, DesignSystem.typography.title3]}
+            >
+              Quick Actions
             </ThemedText>
-            <ThemedText style={styles.emptySubtext}>
-              Set up your server URL and status page ID in settings
-            </ThemedText>
-            <Link href="/settings" asChild>
-              <TouchableOpacity
-                style={[
-                  styles.setupButton,
-                  { backgroundColor: Colors[colorScheme ?? "light"].tint },
-                ]}
-              >
-                <ThemedText style={styles.setupButtonText}>
-                  Go to Settings
-                </ThemedText>
-              </TouchableOpacity>
-            </Link>
+            <ThemedView style={styles.actionsContainer}>
+              <Link href="/monitors" asChild>
+                <GlassButton
+                  title="View All Monitors"
+                  icon="server.rack"
+                  variant="primary"
+                  size="md"
+                  onPress={() => {}}
+                  style={styles.actionButton}
+                />
+              </Link>
+
+              <Link href="/settings" asChild>
+                <GlassButton
+                  title="Settings"
+                  icon="gear"
+                  variant="secondary"
+                  size="md"
+                  onPress={() => {}}
+                  style={styles.actionButton}
+                />
+              </Link>
+            </ThemedView>
           </ThemedView>
-        )}
-      </ScrollView>
-    </ThemedView>
+
+          {/* Recent Monitors */}
+          {monitors.length > 0 && (
+            <ThemedView style={styles.section}>
+              <ThemedText
+                style={[styles.sectionTitle, DesignSystem.typography.title3]}
+              >
+                Recent Monitors
+              </ThemedText>
+              <ThemedView style={styles.monitorsList}>
+                {monitors.slice(0, 3).map((monitor) => (
+                  <MonitorCard key={monitor.id} monitor={monitor} />
+                ))}
+              </ThemedView>
+
+              {errorMonitors > 0 && (
+                <GlassCard style={styles.infoBox} intensity={40}>
+                  <IconSymbol
+                    name="info.circle"
+                    size={16}
+                    color={DesignSystem.colors[colorScheme ?? "light"].info}
+                  />
+                  <ThemedText
+                    style={[styles.infoText, DesignSystem.typography.footnote]}
+                  >
+                    Some monitors show &quot;Error&quot; status. The app now
+                    supports both JSON and SVG badge responses. If you still see
+                    errors, check that the monitor endpoints are accessible.
+                  </ThemedText>
+                </GlassCard>
+              )}
+            </ThemedView>
+          )}
+
+          {error && (
+            <GlassCard style={styles.errorState} intensity={60}>
+              <IconSymbol
+                name="exclamationmark.triangle"
+                size={48}
+                color={DesignSystem.colors[colorScheme ?? "light"].error}
+              />
+              <ThemedText
+                style={[styles.errorText, DesignSystem.typography.title2]}
+              >
+                Connection Error
+              </ThemedText>
+              <ThemedText
+                style={[styles.errorSubtext, DesignSystem.typography.body]}
+              >
+                {error}
+              </ThemedText>
+              <ThemedView style={styles.errorActions}>
+                <GlassButton
+                  title="Retry"
+                  icon="arrow.clockwise"
+                  variant="primary"
+                  size="md"
+                  onPress={retry}
+                  style={styles.retryButton}
+                />
+                <Link href="/settings" asChild>
+                  <GlassButton
+                    title="Settings"
+                    icon="gear"
+                    variant="secondary"
+                    size="md"
+                    onPress={() => {}}
+                    style={styles.settingsButton}
+                  />
+                </Link>
+              </ThemedView>
+            </GlassCard>
+          )}
+
+          {monitors.length === 0 && !loading && !error && (
+            <GlassCard style={styles.emptyState} intensity={60}>
+              <IconSymbol
+                name="server.rack"
+                size={48}
+                color={DesignSystem.colors[colorScheme ?? "light"].label}
+              />
+              <ThemedText
+                style={[styles.emptyText, DesignSystem.typography.title2]}
+              >
+                No monitors configured
+              </ThemedText>
+              <ThemedText
+                style={[styles.emptySubtext, DesignSystem.typography.body]}
+              >
+                Set up your server URL and status page ID in settings
+              </ThemedText>
+              <Link href="/settings" asChild>
+                <GlassButton
+                  title="Go to Settings"
+                  icon="gear"
+                  variant="primary"
+                  size="md"
+                  onPress={() => {}}
+                  style={styles.setupButton}
+                />
+              </Link>
+            </GlassCard>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
@@ -295,133 +312,127 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  safeArea: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: DesignSystem.spacing.xl,
+  },
   header: {
-    padding: 20,
-    paddingBottom: 16,
+    padding: DesignSystem.spacing.lg,
+    paddingBottom: DesignSystem.spacing.lg,
+    paddingTop: DesignSystem.spacing.xl,
   },
   title: {
-    marginBottom: 4,
+    marginBottom: DesignSystem.spacing.xs,
   },
   subtitle: {
-    opacity: 0.7,
-    fontSize: 16,
+    opacity: 0.6,
   },
   statusCard: {
-    margin: 20,
+    margin: DesignSystem.spacing.lg,
     marginTop: 0,
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
   },
   statusHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    gap: DesignSystem.spacing.md,
   },
   statusTextContainer: {
     flex: 1,
   },
   statusText: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 4,
+    marginBottom: DesignSystem.spacing.xs,
   },
   statusSubtext: {
-    fontSize: 14,
     opacity: 0.7,
   },
   statsContainer: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    gap: 12,
-    marginBottom: 24,
+    paddingHorizontal: DesignSystem.spacing.lg,
+    gap: DesignSystem.spacing.sm,
+    marginBottom: DesignSystem.spacing.lg,
   },
   statCard: {
     flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
     alignItems: "center",
-    gap: 8,
+    gap: DesignSystem.spacing.sm,
   },
   statNumber: {
-    fontSize: 24,
     fontWeight: "700",
   },
   statLabel: {
-    fontSize: 12,
     opacity: 0.7,
     textAlign: "center",
   },
   section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    paddingHorizontal: DesignSystem.spacing.lg,
+    marginBottom: DesignSystem.spacing.lg,
   },
   sectionTitle: {
-    marginBottom: 16,
+    marginBottom: DesignSystem.spacing.md,
   },
   actionsContainer: {
-    gap: 12,
+    gap: DesignSystem.spacing.sm,
+    paddingHorizontal: DesignSystem.spacing.lg,
   },
   actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
-    borderWidth: 1,
-  },
-  actionText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
+    width: "100%",
   },
   monitorsList: {
-    gap: 12,
+    gap: DesignSystem.spacing.sm,
   },
   emptyState: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    padding: 40,
-    gap: 16,
+    padding: DesignSystem.spacing.xxl,
+    gap: DesignSystem.spacing.md,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: "600",
+    textAlign: "center",
   },
   emptySubtext: {
-    fontSize: 14,
     opacity: 0.7,
     textAlign: "center",
   },
   setupButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 8,
+    marginTop: DesignSystem.spacing.sm,
   },
-  setupButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
+  errorState: {
+    alignItems: "center",
+    padding: DesignSystem.spacing.xxl,
+    gap: DesignSystem.spacing.md,
+    margin: DesignSystem.spacing.lg,
+  },
+  errorText: {
+    textAlign: "center",
+  },
+  errorSubtext: {
+    opacity: 0.7,
+    textAlign: "center",
+  },
+  errorActions: {
+    flexDirection: "row",
+    gap: DesignSystem.spacing.sm,
+    marginTop: DesignSystem.spacing.sm,
+  },
+  retryButton: {
+    flex: 1,
+  },
+  settingsButton: {
+    flex: 1,
   },
   infoBox: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 8,
-    padding: 12,
-    marginTop: 12,
-    borderRadius: 8,
-    borderWidth: 1,
+    gap: DesignSystem.spacing.sm,
+    marginTop: DesignSystem.spacing.sm,
   },
   infoText: {
     flex: 1,
-    fontSize: 14,
     opacity: 0.8,
     lineHeight: 20,
   },
