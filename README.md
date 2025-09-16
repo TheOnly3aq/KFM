@@ -1,8 +1,17 @@
-# Welcome to your Expo app 👋
+# KUMA Monitor - iOS App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A modern iOS app for monitoring KUMA uptime status pages. Built with Expo and React Native.
 
-## Get started
+## Features
+
+- **Dashboard**: Overview of all monitors with overall system status
+- **Monitor List**: Detailed view of all configured monitors
+- **Monitor Details**: Individual monitor status with heartbeat history
+- **Settings**: Configure server URL and status page ID
+- **Real-time Updates**: Auto-refresh and pull-to-refresh functionality
+- **iOS Optimized**: Native iOS design patterns and interactions
+
+## Setup
 
 1. Install dependencies
 
@@ -10,41 +19,58 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Start the development server
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+3. Open in iOS Simulator or on a physical device
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Configuration
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+1. Open the app and go to the **Settings** tab
+2. Enter your KUMA server URL (e.g., `https://your-kuma-server.com`)
+3. Enter your status page ID (default: `vroom`)
+4. Test the connection to ensure everything is working
+5. Save your settings
 
-## Get a fresh project
+## API Endpoints Used
 
-When you're ready, run:
+The app uses the following KUMA API endpoints:
+
+- `/api/status-page/{statusPageId}` - Get status page data and monitor list
+- `/api/badge/{monitorId}/status` - Get individual monitor status
+- `/api/status-page/{statusPageId}/badge` - Get overall status page status
+- `/api/status-page/heartbeat/{statusPageId}` - Get heartbeat data
+
+## App Structure
+
+- **Dashboard** (`/`): Main overview with system status and quick actions
+- **Monitors** (`/monitors`): List of all monitors with their current status
+- **Settings** (`/settings`): Server configuration and app preferences
+- **Monitor Detail** (`/monitor-detail`): Individual monitor details with heartbeat history
+
+## Development
+
+The app is built with:
+
+- **Expo Router** for navigation
+- **React Native** for the mobile framework
+- **TypeScript** for type safety
+- **AsyncStorage** for data persistence
+- **Expo Vector Icons** for iOS-native icons
+
+## Building for Production
+
+To build for iOS:
 
 ```bash
-npm run reset-project
+npx expo build:ios
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Or use EAS Build:
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npx eas build --platform ios
+```
